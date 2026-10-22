@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Vue 360 TGV M</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  .wrap { position: fixed; inset: 0; background: #000; }
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+  .cover {
+    position: absolute; inset: 0; z-index: 2; display: grid; place-items: center;
+    background: #0b0d12; color: #eef2f7; font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    transition: opacity .45s ease; opacity: 1;
+  }
+  .cover[data-hidden="true"] { opacity: 0; pointer-events: none; }
+  .cover .inner { text-align: center; padding: 24px; max-width: 80%; }
+  .cover .ring {
+    width: 34px; height: 34px; margin: 0 auto 14px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.18); border-top-color: #ffcc00; animation: spin 1s linear infinite;
+  }
+  .cover .name { font-weight: 600; font-size: 16px; }
+  .cover .sub { color: #8e9ab0; font-size: 13px; margin-top: 4px; }
+  .cover.error .ring { display: none; }
+  .cover a { color: #ffcc00; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .cover .ring { animation: none; } .cover { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <iframe id="player" title="Vue 360 du TGV M" allow="fullscreen; gyroscope; accelerometer; xr-spatial-tracking" allowfullscreen referrerpolicy="no-referrer"></iframe>
+  <div class="cover" id="cover" role="status" aria-live="polite">
+    <div class="inner">
+      <div class="ring" aria-hidden="true"></div>
+      <div class="name" id="name">Vue 360</div>
+      <div class="sub" id="sub">Chargement de l'image…</div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  "use strict";
+  var UPTALE = "https://sncf.uptale.io";
+  var EXP = "TOBJjBO0K06Fg3xk7clw";
+  var SCENES = {
+    "scene1": "Intro",
+    "5560abd4-919f-4894-9984-076f87f4468e": "Motrice avant, extérieur",
+    "909883cf-7210-4dc7-a0f1-67d769d3d6b7": "Motrice côté, cabine de conduite",
+    "243d78a1-a4a7-4128-b7e3-f4e98872d5a3": "Cabine, intérieur",
+    "f8a0d71f-8111-4e33-80ec-42468e292e18": "Entrée voiture",
+    "368206ca-ffc7-4f80-94dd-f3accd57a898": "R1, Première classe",
+    "96697144-a2b9-400d-a84c-84d04f9f77ad": "R1, Toilettes basses",
+    "60dc25b3-d176-49e3-a9e9-2772f3229bd2": "R1, Première classe milieu",
+    "07fd6f33-6ca5-4469-925e-f5881e68c97a": "R2, Deuxième classe",
+    "d14c707d-f7af-4fa3-804c-f7c43062c26b": "R2, Seconde classe haute milieu",
+    "4e10efed-9891-4757-b1c2-7e530e464c0a": "R3, Plateforme basse espace UFR",
+    "e1d7f0d5-5938-4987-a0fc-7d95c96ac874": "R3, Vestiaire",
+    "8eae90ce-d2c1-40f0-8313-603166276928": "R3, Voiture UFR",
+    "f1bd9b18-8c6c-4054-b743-aaf02cb71b5e": "R3, Toilette UFR",
+    "8199ca70-2931-4735-9a1a-4d9fde129231": "R3, Seconde classe haute, point info",
+    "c9bad73e-8b1d-489f-99ab-72797c2891d2": "R3, Point info, rame haute",
+    "4318b951-8bbb-4349-8c31-ff48088e2fb5": "R4, Voiture bar",
+    "209a99c2-3b64-4192-a5b7-f99c57c20832": "R4, Espace bar haut, plateforme",
+    "2266eb2d-bce4-49d7-af31-027914f80e25": "R4, Bar bas milieu",
+    "1b2acd2b-c4af-4a09-9583-7fdc975ad3be": "R4, Bar bas, produits frais",
+    "39ce244c-a490-4867-96b5-2f0cabb0d2d8": "R5, Plateforme haut WC",
+    "1efb4c2b-0a6d-4404-bc68-13ae3c134580": "Fin"
+  };
+
+  var q = new URLSearchParams(location.search);
+  var view = q.get("view") || q.get("world") || "243d78a1-a4a7-4128-b7e3-f4e98872d5a3";
+  var lock = q.get("lock") !== "0";                       // default: locked on this view
+  var maxHops = /^\d+$/.test(q.get("max") || "") ? Number(q.get("max")) : (lock ? 0 : Infinity);
+  var menu = q.get("menu") === "1";
+  var mirror = (q.get("mirror") || "").replace(/\/+$/, "");
+  if (!/^https:\/\/[a-z0-9.-]+(\.workers\.dev|\.sncf\.fr|\.connectedmate\.com)$/i.test(mirror)) mirror = "";
+  var base = mirror || UPTALE;
+
+  var player = document.getElementById("player");
+  var cover = document.getElementById("cover");
+  var nameEl = document.getElementById("name");
+  var subEl = document.getElementById("sub");
+  nameEl.textContent = SCENES[view] || "Vue 360";
+
+  function src(target) {
+    var p = [["id", EXP], ["lang", "fr"], ["playbackMode", "Smartload"], ["ui", "false"], ["autostart", "true"], ["menu", menu ? "true" : "false"], ["world", target]];
+    if (mirror) { p.push(["hideTags", "1"]); if (lock) p.push(["only", target]); }
+    return base + "/experience/Launch?" + p.map(function (kv) { return kv[0] + "=" + encodeURIComponent(kv[1]); }).join("&");
+  }
+
+  var hops = 0, revealTimer = null, failTimer = null, revealed = false;
+
+  function showCover(text) {
+    revealed = false;
+    cover.classList.remove("error");
+    subEl.textContent = text || "Chargement de l'image…";
+    cover.setAttribute("data-hidden", "false");
+  }
+  function reveal() {
+    if (revealed) return;
+    revealed = true;
+    clearTimeout(failTimer);
+    // Short grace so the 360 is painted before the cover fades.
+    clearTimeout(revealTimer);
+    revealTimer = setTimeout(function () { cover.setAttribute("data-hidden", "true"); }, 350);
+  }
+  function load(target) {
+    showCover();
+    player.src = src(target);
+    clearTimeout(failTimer);
+    // If the player never reports, do not hold the visitor hostage.
+    failTimer = setTimeout(function () {
+      if (!revealed) {
+        if (navigator.onLine === false) {
+          cover.classList.add("error");
+          subEl.textContent = "Pas de connexion. La vue s'affichera dès le retour du réseau.";
+          window.addEventListener("online", function () { load(view); }, { once: true });
+        } else {
+          reveal();
+        }
+      }
+    }, 30000);
+  }
+
+  window.addEventListener("message", function (ev) {
+    if (ev.origin !== base) return;
+    if (typeof ev.data !== "string") return;
+    var msg; try { msg = JSON.parse(ev.data); } catch (e) { return; }
+    if (msg.eventName === "ChangedScene") {
+      if (msg.target === view) { hops = 0; reveal(); return; }
+      hops += 1;
+      if (hops > maxHops) { hops = 0; load(view); return; }
+      reveal();
+    }
+    if (msg.eventName === "Restart") { load(view); }
+  });
+
+  player.addEventListener("error", function () { cover.classList.add("error"); subEl.textContent = "La vue n'a pas pu être chargée."; });
+  load(view);
+})();
+</script>
+</body>
+</html>
