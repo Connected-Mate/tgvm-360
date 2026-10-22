@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>TGV M en 360</title>
+<meta name="description" content="Les vues 360 du TGV M, une par une, sans pastilles ni fiches.">
+<style>
+  :root {
+    --bg: #0b0d12; --panel: #12161e; --line: #232a37; --text: #eef2f7; --muted: #8e9ab0;
+    --accent: #ffcc00; --accent-ink: #141414; --focus: #7cc4ff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f5f6f8; --panel: #ffffff; --line: #e1e5ec; --text: #10151f; --muted: #5d6879; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  a { color: inherit; }
+  header { padding: 18px 20px 10px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  main { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; padding: 0 20px 24px; }
+  nav { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px; max-height: calc(100vh - 110px); overflow: auto; }
+  nav h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 8px 8px 6px; }
+  .views { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .views button { width: 100%; text-align: left; background: transparent; color: var(--text); border: 0; border-radius: 10px; padding: 9px 10px; font: inherit; cursor: pointer; display: flex; gap: 10px; align-items: center; }
+  .views button:hover { background: color-mix(in srgb, var(--line) 60%, transparent); }
+  .views button[aria-current="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .views button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .views .num { width: 22px; font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; }
+  .views button[aria-current="true"] .num { color: var(--accent-ink); }
+  .stage { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .frame { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+  .frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .frame .notice { position: absolute; inset: 0; display: none; place-items: center; text-align: center; padding: 24px; background: rgba(0,0,0,.82); color: #fff; }
+  .frame .notice[data-show="true"] { display: grid; }
+  .frame .notice code { display: block; margin-top: 8px; font-size: 12px; color: #ffd866; word-break: break-all; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; font-size: 14px; }
+  .bar label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+  .bar input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); }
+  .bar .spacer { flex: 1; }
+  .bar button { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 9px; padding: 7px 12px; font: inherit; cursor: pointer; }
+  .bar button:hover { border-color: var(--muted); }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+  details textarea { width: 100%; min-height: 70px; margin-top: 10px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: 12px/1.45 ui-monospace, Menlo, monospace; resize: vertical; }
+  details input[type="url"] { width: 100%; margin-top: 8px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 8px; font: inherit; }
+  .hint { color: var(--muted); font-size: 13px; margin: 6px 0 0; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  @media (max-width: 860px) {
+    main { grid-template-columns: 1fr; }
+    nav { max-height: 38vh; order: 2; }
+    .stage { order: 1; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>TGV M en 360</h1>
+  <p>Choisis une vue. Elle s'affiche seule, sans pastilles ni fiches.</p>
+</header>
+<main>
+  <nav aria-label="Vues 360">
+    <h2>22 vues</h2>
+    <ul class="views" id="views"></ul>
+  </nav>
+  <section class="stage" aria-live="polite">
+    <div class="frame">
+      <iframe id="player" title="Vue 360 du TGV M" allow="fullscreen; gyroscope; accelerometer; xr-spatial-tracking" allowfullscreen referrerpolicy="no-referrer"></iframe>
+      <div class="notice" id="notice" role="status"></div>
+    </div>
+    <div class="bar">
+      <label><input type="checkbox" id="hide" checked> Sans pastilles ni fiches</label>
+      <label><input type="checkbox" id="lock" checked> Vue verrouillée</label>
+      <label><input type="checkbox" id="arrows"> Garder les flèches de déplacement</label>
+      <span class="spacer"></span>
+      <button type="button" id="fullscreen">Plein écran</button>
+      <button type="button" id="copy">Copier le lien</button>
+    </div>
+    <details>
+      <summary>Code iframe et réglages avancés</summary>
+      <textarea id="code" readonly aria-label="Code iframe"></textarea>
+      <label for="mirror" class="hint">Adresse du miroir (serveur qui retire les pastilles)</label>
+      <input type="url" id="mirror" placeholder="https://tgvm-360.xxx.workers.dev" autocomplete="off" spellcheck="false">
+      <p class="hint">Sans miroir, la page affiche la version Uptale brute (pastilles visibles).</p>
+    </details>
+  </section>
+</main>
+<script>
+(function () {
+  "use strict";
+  var UPTALE = "https://sncf.uptale.io";
+  var DEFAULT_MIRROR = "https://tgvm-360.connected-mate.workers.dev";
+  var EXP = "TOBJjBO0K06Fg3xk7clw";
+  var SCENES = [
+    ["scene1", "Intro"],
+    ["5560abd4-919f-4894-9984-076f87f4468e", "Motrice avant, extérieur"],
+    ["909883cf-7210-4dc7-a0f1-67d769d3d6b7", "Motrice côté, cabine de conduite"],
+    ["243d78a1-a4a7-4128-b7e3-f4e98872d5a3", "Cabine, intérieur"],
+    ["f8a0d71f-8111-4e33-80ec-42468e292e18", "Entrée voiture"],
+    ["368206ca-ffc7-4f80-94dd-f3accd57a898", "R1, Première classe"],
+    ["96697144-a2b9-400d-a84c-84d04f9f77ad", "R1, Toilettes basses"],
+    ["60dc25b3-d176-49e3-a9e9-2772f3229bd2", "R1, Première classe milieu"],
+    ["07fd6f33-6ca5-4469-925e-f5881e68c97a", "R2, Deuxième classe"],
+    ["d14c707d-f7af-4fa3-804c-f7c43062c26b", "R2, Seconde classe haute milieu"],
+    ["4e10efed-9891-4757-b1c2-7e530e464c0a", "R3, Plateforme basse espace UFR"],
+    ["e1d7f0d5-5938-4987-a0fc-7d95c96ac874", "R3, Vestiaire"],
+    ["8eae90ce-d2c1-40f0-8313-603166276928", "R3, Voiture UFR"],
+    ["f1bd9b18-8c6c-4054-b743-aaf02cb71b5e", "R3, Toilette UFR"],
+    ["8199ca70-2931-4735-9a1a-4d9fde129231", "R3, Seconde classe haute, point info"],
+    ["c9bad73e-8b1d-489f-99ab-72797c2891d2", "R3, Point info, rame haute"],
+    ["4318b951-8bbb-4349-8c31-ff48088e2fb5", "R4, Voiture bar"],
+    ["209a99c2-3b64-4192-a5b7-f99c57c20832", "R4, Espace bar haut, plateforme"],
+    ["2266eb2d-bce4-49d7-af31-027914f80e25", "R4, Bar bas milieu"],
+    ["1b2acd2b-c4af-4a09-9583-7fdc975ad3be", "R4, Bar bas, produits frais"],
+    ["39ce244c-a490-4867-96b5-2f0cabb0d2d8", "R5, Plateforme haut WC"],
+    ["1efb4c2b-0a6d-4404-bc68-13ae3c134580", "Fin"]
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var player = $("player"), notice = $("notice"), list = $("views");
+  var hide = $("hide"), lock = $("lock"), arrows = $("arrows"), mirrorInput = $("mirror");
+  var current = null, mirrorOk = null, loadTimer = null;
+
+  function store(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
+  function read(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+
+  function mirrorBase() {
+    var v = (mirrorInput.value || "").trim().replace(/\/+$/, "");
+    if (!/^https?:\/\//.test(v)) return "";
+    return v;
+  }
+
+  function buildUrl(base) {
+    var p = [["id", EXP], ["lang", "fr"], ["playbackMode", "Smartload"], ["ui", "false"], ["menu", "false"], ["autostart", "true"], ["world", current]];
+    if (base !== UPTALE) {
+      if (hide.checked) p.push(["hideTags", "1"]);
+      if (hide.checked && arrows.checked && !lock.checked) p.push(["keepLinks", "1"]);
+      if (lock.checked) p.push(["only", current]);
+    }
+    return base + "/experience/Launch?" + p.map(function (kv) { return kv[0] + "=" + encodeURIComponent(kv[1]); }).join("&");
+  }
+
+  function showNotice(text, url) {
+    notice.innerHTML = "";
+    var t = document.createElement("div"); t.textContent = text; notice.appendChild(t);
+    if (url) { var c = document.createElement("code"); c.textContent = url; notice.appendChild(c); }
+    notice.setAttribute("data-show", "true");
+  }
+  function hideNotice() { notice.setAttribute("data-show", "false"); }
+
+  function checkMirror(base) {
+    if (!base) return Promise.resolve(false);
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 4000);
+    return fetch(base + "/health", { mode: "cors", signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { return r.ok; })
+      .catch(function () { return false; })
+      .then(function (ok) { clearTimeout(timer); return ok; });
+  }
+
+  function render() {
+    var base = mirrorBase();
+    var wanted = (hide.checked || lock.checked) && base;
+    var go = function (useMirror) {
+      var url = buildUrl(useMirror ? base : UPTALE);
+      player.src = url;
+      $("code").value = '<iframe src="' + url + '" width="960" height="540" allow="fullscreen; gyroscope; accelerometer; xr-spatial-tracking" allowfullscreen></iframe>';
+      if (wanted && !useMirror) {
+        showNotice("Le miroir ne répond pas : version Uptale brute affichée (pastilles visibles).", base);
+      } else {
+        hideNotice();
+      }
+      try { history.replaceState(null, "", "#" + current); } catch (e) {}
+    };
+    if (!wanted) { go(false); return; }
+    if (mirrorOk === true) { go(true); return; }
+    showNotice("Chargement de la vue…");
+    checkMirror(base).then(function (ok) { mirrorOk = ok; go(ok); });
+  }
+
+  function select(id, focusButton) {
+    current = id;
+    store("tgvm360.view", id);
+    Array.prototype.forEach.call(list.querySelectorAll("button"), function (b) {
+      var on = b.getAttribute("data-id") === id;
+      b.setAttribute("aria-current", on ? "true" : "false");
+      if (on && focusButton) b.focus();
+    });
+    render();
+  }
+
+  SCENES.forEach(function (s, i) {
+    var li = document.createElement("li");
+    var b = document.createElement("button");
+    b.type = "button"; b.setAttribute("data-id", s[0]); b.setAttribute("aria-current", "false");
+    var n = document.createElement("span"); n.className = "num"; n.textContent = String(i + 1);
+    var t = document.createElement("span"); t.textContent = s[1];
+    b.appendChild(n); b.appendChild(t);
+    b.addEventListener("click", function () { select(s[0], false); });
+    li.appendChild(b); list.appendChild(li);
+  });
+
+  list.addEventListener("keydown", function (ev) {
+    if (ev.key !== "ArrowDown" && ev.key !== "ArrowUp") return;
+    var idx = SCENES.findIndex(function (s) { return s[0] === current; });
+    var next = ev.key === "ArrowDown" ? Math.min(SCENES.length - 1, idx + 1) : Math.max(0, idx - 1);
+    ev.preventDefault();
+    select(SCENES[next][0], true);
+  });
+
+  [hide, lock, arrows].forEach(function (el) {
+    el.addEventListener("change", function () {
+      if (el === lock && lock.checked) arrows.checked = false;
+      if (el === arrows && arrows.checked) lock.checked = false;
+      store("tgvm360.hide", hide.checked ? "1" : "0");
+      store("tgvm360.lock", lock.checked ? "1" : "0");
+      store("tgvm360.arrows", arrows.checked ? "1" : "0");
+      if (!hide.checked) arrows.checked = false;
+      render();
+    });
+  });
+
+  mirrorInput.addEventListener("change", function () {
+    store("tgvm360.mirror", mirrorInput.value.trim());
+    mirrorOk = null;
+    render();
+  });
+
+  $("fullscreen").addEventListener("click", function () {
+    var el = player.parentElement;
+    var fn = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (fn) { try { fn.call(el); } catch (e) {} }
+  });
+
+  $("copy").addEventListener("click", function () {
+    var url = player.src;
+    var done = function () { $("copy").textContent = "Lien copié"; setTimeout(function () { $("copy").textContent = "Copier le lien"; }, 1600); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, function () { window.prompt("Copie ce lien :", url); });
+    else window.prompt("Copie ce lien :", url);
+  });
+
+  window.addEventListener("message", function (ev) {
+    if (ev.origin !== mirrorBase() && ev.origin !== UPTALE) return;
+    if (typeof ev.data !== "string") return;
+    var msg; try { msg = JSON.parse(ev.data); } catch (e) { return; }
+    if (msg.eventName === "ChangedScene" && lock.checked && msg.target && msg.target !== current) {
+      clearTimeout(loadTimer);
+      loadTimer = setTimeout(render, 150);
+    }
+  });
+
+  // Restore state: hash first, then saved choice, then first scene.
+  var saved = read("tgvm360.mirror");
+  mirrorInput.value = saved !== null && saved !== "" ? saved : DEFAULT_MIRROR;
+  if (read("tgvm360.hide") === "0") hide.checked = false;
+  if (read("tgvm360.lock") === "0") lock.checked = false;
+  if (read("tgvm360.arrows") === "1" && !lock.checked) arrows.checked = true;
+  var fromHash = (location.hash || "").slice(1);
+  var known = function (id) { return SCENES.some(function (s) { return s[0] === id; }); };
+  var start = known(fromHash) ? fromHash : (known(read("tgvm360.view")) ? read("tgvm360.view") : SCENES[3][0]);
+  select(start, false);
+  window.addEventListener("hashchange", function () {
+    var h = (location.hash || "").slice(1);
+    if (known(h) && h !== current) select(h, false);
+  });
+})();
+</script>
+</body>
+</html>
