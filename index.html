@@ -71,8 +71,9 @@
       <div class="notice" id="notice" role="status"></div>
     </div>
     <div class="bar">
-      <label><input type="checkbox" id="lock" checked> Vue verrouillée (aucun enchaînement)</label>
-      <label><input type="checkbox" id="hide"> Sans pastilles ni fiches (miroir requis)</label>
+      <label><input type="checkbox" id="hide" checked> Sans les points « i » ni fiches</label>
+      <label><input type="checkbox" id="arrows" checked> Garder les flèches de déplacement</label>
+      <label><input type="checkbox" id="lock"> Vue verrouillée (aucun enchaînement)</label>
       <span class="spacer"></span>
       <button type="button" id="fullscreen">Plein écran</button>
       <button type="button" id="copy">Copier le lien</button>
@@ -80,16 +81,16 @@
     <details>
       <summary>Code iframe et réglages avancés</summary>
       <textarea id="code" readonly aria-label="Code iframe"></textarea>
-      <label for="mirror" class="hint">Miroir optionnel (serveur qui retire les pastilles). Vide = aucun serveur, lecteur Uptale direct.</label>
+      <label for="mirror" class="hint">Adresse qui retire les points « i » (déjà réglée, ne change rien sauf si on te le demande)</label>
       <input type="url" id="mirror" placeholder="https://tgvm-360.xxx.workers.dev" autocomplete="off" spellcheck="false">
-      <p class="hint">Le lien copié masque l'écran de chargement Uptale et verrouille la vue, sans aucun serveur.</p>
+      <p class="hint">Le lien copié suffit : il masque l'écran de chargement Uptale et les points « i ». Les flèches de déplacement restent.</p>
     </details>
   </section>
 </main>
 <script>
 (function () {
   "use strict";
-  var DEFAULT_MIRROR = "";
+  var DEFAULT_MIRROR = "https://tgvm-360.modern-speak.workers.dev";
   var EXP = "TOBJjBO0K06Fg3xk7clw";
   var SCENES = [
     ["scene1", "Intro"],
@@ -118,7 +119,7 @@
 
   var $ = function (id) { return document.getElementById(id); };
   var player = $("player"), notice = $("notice"), list = $("views");
-  var hide = $("hide"), lock = $("lock"), mirrorInput = $("mirror");
+  var hide = $("hide"), lock = $("lock"), arrows = $("arrows"), mirrorInput = $("mirror");
   var current = null, mirrorOk = null;
   var EMBED = location.href.replace(/[#?].*$/, "").replace(/index\.html$/, "").replace(/\/?$/, "/") + "embed.html";
 
@@ -132,8 +133,11 @@
   }
 
   function buildUrl(useMirror) {
-    var p = [["view", current], ["lock", lock.checked ? "1" : "0"]];
-    if (useMirror) p.push(["mirror", mirrorBase()]);
+    var p = [["view", current]];
+    if (lock.checked) p.push(["lock", "1"]);
+    if (!hide.checked) p.push(["tags", "all"]);
+    else if (!arrows.checked) p.push(["tags", "none"]);
+    if (useMirror && mirrorBase() !== DEFAULT_MIRROR) p.push(["mirror", mirrorBase()]);
     return EMBED + "?" + p.map(function (kv) { return kv[0] + "=" + encodeURIComponent(kv[1]); }).join("&");
   }
 
@@ -163,7 +167,7 @@
       player.src = url;
       $("code").value = '<iframe src="' + url + '" width="960" height="540" allow="fullscreen; gyroscope; accelerometer; xr-spatial-tracking" allowfullscreen></iframe>';
       if (wanted && !useMirror) {
-        showNotice("Le miroir ne répond pas : lecteur Uptale direct affiché (pastilles visibles).", base);
+        showNotice("Le miroir ne répond pas : lecteur Uptale direct affiché (points « i » visibles).", base);
       } else {
         hideNotice();
       }
@@ -204,10 +208,12 @@
     select(SCENES[next][0], true);
   });
 
-  [hide, lock].forEach(function (el) {
+  [hide, lock, arrows].forEach(function (el) {
     el.addEventListener("change", function () {
+      arrows.disabled = !hide.checked;
       store("tgvm360.hide", hide.checked ? "1" : "0");
       store("tgvm360.lock", lock.checked ? "1" : "0");
+      store("tgvm360.arrows", arrows.checked ? "1" : "0");
       render();
     });
   });
@@ -234,8 +240,10 @@
   // Restore state: hash first, then saved choice, then first scene.
   var saved = read("tgvm360.mirror");
   mirrorInput.value = saved !== null ? saved : DEFAULT_MIRROR;
-  if (read("tgvm360.hide") === "1") hide.checked = true;
-  if (read("tgvm360.lock") === "0") lock.checked = false;
+  if (read("tgvm360.hide") === "0") hide.checked = false;
+  if (read("tgvm360.lock") === "1") lock.checked = true;
+  if (read("tgvm360.arrows") === "0") arrows.checked = false;
+  arrows.disabled = !hide.checked;
   var fromHash = (location.hash || "").slice(1);
   var known = function (id) { return SCENES.some(function (s) { return s[0] === id; }); };
   var start = known(fromHash) ? fromHash : (known(read("tgvm360.view")) ? read("tgvm360.view") : SCENES[3][0]);

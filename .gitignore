@@ -1,4 +1,5 @@
 node_modules/
 .wrangler/
 worker/dev.log
+worker/deploy.out
 .DS_Store

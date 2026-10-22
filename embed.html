@@ -69,13 +69,22 @@
     "1efb4c2b-0a6d-4404-bc68-13ae3c134580": "Fin"
   };
 
+  // Mirror = same Uptale player, served through a free Cloudflare address that removes the
+  // info markers before the player starts. Visitors never see it; they only get this page's URL.
+  var DEFAULT_MIRROR = "https://tgvm-360.modern-speak.workers.dev";
+
   var q = new URLSearchParams(location.search);
   var view = q.get("view") || q.get("world") || "243d78a1-a4a7-4128-b7e3-f4e98872d5a3";
-  var lock = q.get("lock") !== "0";                       // default: locked on this view
+  var lock = q.get("lock") === "1";                       // default: free navigation
   var maxHops = /^\d+$/.test(q.get("max") || "") ? Number(q.get("max")) : (lock ? 0 : Infinity);
   var menu = q.get("menu") === "1";
-  var mirror = (q.get("mirror") || "").replace(/\/+$/, "");
+  // tags=links (default): keep navigation markers, drop info markers and cards.
+  // tags=none: no marker at all. tags=all: untouched Uptale experience.
+  var tags = q.get("tags") || "links";
+  if (["links", "none", "all"].indexOf(tags) < 0) tags = "links";
+  var mirror = (q.get("mirror") || DEFAULT_MIRROR).replace(/\/+$/, "");
   if (!/^https:\/\/[a-z0-9.-]+(\.workers\.dev|\.sncf\.fr|\.connectedmate\.com)$/i.test(mirror)) mirror = "";
+  if (tags === "all") mirror = "";
   var base = mirror || UPTALE;
 
   var player = document.getElementById("player");
@@ -86,8 +95,23 @@
 
   function src(target) {
     var p = [["id", EXP], ["lang", "fr"], ["playbackMode", "Smartload"], ["ui", "false"], ["autostart", "true"], ["menu", menu ? "true" : "false"], ["world", target]];
-    if (mirror) { p.push(["hideTags", "1"]); if (lock) p.push(["only", target]); }
+    if (base !== UPTALE) {
+      p.push(["hideTags", "1"]);
+      if (tags === "links") p.push(["keepLinks", "1"]);
+      if (lock) p.push(["only", target]);
+    }
     return base + "/experience/Launch?" + p.map(function (kv) { return kv[0] + "=" + encodeURIComponent(kv[1]); }).join("&");
+  }
+
+  // If the mirror is down, fall back to the plain Uptale player so the view always shows.
+  function pickBase() {
+    if (!mirror) return Promise.resolve();
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 4000);
+    return fetch(mirror + "/health", { mode: "cors", signal: ctrl ? ctrl.signal : undefined })
+      .then(function (r) { if (!r.ok) base = UPTALE; })
+      .catch(function () { base = UPTALE; })
+      .then(function () { clearTimeout(timer); });
   }
 
   var hops = 0, revealTimer = null, failTimer = null, revealed = false;
@@ -138,7 +162,8 @@
   });
 
   player.addEventListener("error", function () { cover.classList.add("error"); subEl.textContent = "La vue n'a pas pu être chargée."; });
-  load(view);
+  showCover();
+  pickBase().then(function () { load(view); });
 })();
 </script>
 </body>
